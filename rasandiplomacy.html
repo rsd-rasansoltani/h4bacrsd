@@ -438,6 +438,10 @@ if (savedVersion && savedVersion !== currentVersion) {
 }
 
 localStorage.setItem("siteVersion", currentVersion);
+    if ("Notification" in window) {
+    console.log("مرورگر از نوتیفیکیشن پشتیبانی می‌کند");
+    console.log("Permission:", Notification.permission);
+    }
   </script>
 </body>
 </html>
