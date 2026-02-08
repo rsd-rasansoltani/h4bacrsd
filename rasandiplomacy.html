@@ -2,6 +2,45 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <style>
+#notifyBtn {
+  display: inline-block;
+  padding: 12px 20px;
+  background: #00c853; /* سبز جذاب */
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 300px;
+  margin: 20px auto;
+  display: block;
+  text-align: center;
+}
+
+#notifyBtn:hover {
+  background: #00e676;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+#notifyBtn:active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* برای ریسپانسیو موبایل */
+@media (max-width: 480px) {
+  #notifyBtn {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+}
+</style>
+<style>
 .notify-box {
   position: fixed;
   bottom: 20px;
