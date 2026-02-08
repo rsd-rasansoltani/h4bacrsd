@@ -123,6 +123,34 @@ border-radius:4px;
 ">باشه</button>
 </div>
 <body>
+<button id="notifyBtn">نمایش نوتیف واقعی</button>
+
+<script>
+const notifyBtn = document.getElementById('notifyBtn');
+
+notifyBtn.addEventListener('click', () => {
+  // بررسی اجازه
+  if (Notification.permission === "granted") {
+    showNotification();
+  } else if (Notification.permission !== "denied") {
+    // درخواست اجازه
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        showNotification();
+      }
+    });
+  }
+});
+
+function showNotification() {
+  new Notification("سلام!", {
+    body: "این یک نوتیف واقعی شبیه موبایل است.",
+    icon: "logo2.png", // آیکون کوچک نوتیف
+    badge: "logo2.png", // برای موبایل اندروید
+    vibrate: [100, 50, 100], // لرزش روی موبایل
+  });
+}
+</script>
 <div class="body_wrapper">
   <div class="center">
     <div class="header_area">
