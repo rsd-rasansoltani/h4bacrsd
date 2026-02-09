@@ -406,86 +406,56 @@ $('.bxslider').bxSlider({
 </script>
 <!-- ========== OneSignal + custom permission flow (paste before </body>) ========== -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<!-- OneSignal SDK -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 
 <script>
-(function () {
-  // === تنظیمات — فقط اینارو عوض کن اگر لازم شد ===
-  const ONE_SIGNAL_APP_ID = "7c43b395-ab6f-4c19-80b5-b9ee8d54df76"; // از پنل OneSignal گرفته شده
-  const ASK_KEY = "h4bacrsd_notif_asked_v1"; // فلگ محلی
-  const PROMPT_DELAY_MS = 1200; // تأخیر قبل از نشان دادن confirm در بارهای بعد
+window.OneSignalDeferred = window.OneSignalDeferred || [];
 
-  // اگر مرورگر از اعلان پشتیبانی نمی‌کنه، خارج شو
+OneSignalDeferred.push(async function (OneSignal) {
+  await OneSignal.init({
+    appId: "7c43b395-ab6f-4c19-80b5-b9ee8d54df76",
+    notifyButton: { enable: false }
+  });
+
+  // اگر مرورگر پشتیبانی نکنه
   if (!("Notification" in window)) return;
 
-  // آماده‌سازی صف OneSignal (کتابخانه به‌صورت defer لود می‌شه)
-  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  // اگر اجازه داده شده → هیچ کاری نکن
+  if (Notification.permission === "granted") return;
 
-  OneSignalDeferred.push(async function (OneSignal) {
-    // یک init ساده — serviceWorkerPath به sw.js در روت اشاره می‌کنه
-    await OneSignal.init({
-      appId: ONE_SIGNAL_APP_ID,
-      notifyButton: { enable: false },
-      serviceWorkerPath: "sw.js",
-      serviceWorkerUpdaterPath: "sw.js",
-      serviceWorkerParam: { scope: "/" }
-    });
+  // ساخت دکمه
+  const btn = document.createElement("button");
+  btn.innerText = "🔔 فعال‌سازی اعلان‌های سایت";
+  btn.style.position = "fixed";
+  btn.style.bottom = "20px";
+  btn.style.left = "20px";
+  btn.style.zIndex = "9999";
+  btn.style.padding = "12px 18px";
+  btn.style.borderRadius = "10px";
+  btn.style.border = "none";
+  btn.style.cursor = "pointer";
+  btn.style.fontSize = "14px";
+  btn.style.background = "#111";
+  btn.style.color = "#fff";
+  btn.style.boxShadow = "0 4px 12px rgba(0,0,0,.3)";
 
-    // اگر صفحه دکمه مخصوص داری، بهش گوش بدیم (اختیاری)
-    const btn = document.getElementById("notifyBtn");
-    if (btn) {
-      btn.addEventListener("click", async function () {
-        const perm = Notification.permission;
-        if (perm === "granted") {
-          alert("🔔 اعلان‌ها قبلاً فعال شده‌اند.");
-          return;
-        }
-        if (perm === "denied") {
-          alert("❌ اعلان‌ها مسدود شده‌اند. برای فعال‌سازی باید از تنظیمات مرورگر استفاده کنید.");
-          return;
-        }
-        // باز کردن پرامپت رسمی OneSignal
-        OneSignal.showSlidedownPrompt();
-      });
+  document.body.appendChild(btn);
+
+  btn.onclick = async function () {
+    const perm = Notification.permission;
+
+    if (perm === "denied") {
+      alert("❌ اعلان‌ها مسدود شده‌اند.\nبرای فعال‌سازی باید از تنظیمات مرورگر اجازه دهید.");
+      return;
     }
 
-    // وقتی DOM آماده شد، منطقِ «بار اول / بار دوم» اجرا می‌شه
-    document.addEventListener("DOMContentLoaded", function () {
-      const perm = Notification.permission;
-
-      // اگر قبلاً اجازه داده شده، کاری نکن
-      if (perm === "granted") return;
-
-      // اگر قبلاً مسدود شده، کاری نکن (یا می‌تونی یک بنر کوچک نشون بدی)
-      if (perm === "denied") return;
-
-      // اگر بار اول بازدید هست (فلگ موجود نیست) → فقط فلگ بزن و ساکت باش
-      if (!localStorage.getItem(ASK_KEY)) {
-        localStorage.setItem(ASK_KEY, "1");
-        return;
-      }
-
-      // از بار دوم به بعد: با تأخیرِ کوتاه یک confirm نشون بده
-      setTimeout(function () {
-        // دوباره چک کن چون ممکنه کاربر در تب دیگه اجازه داده باشه
-        const nowPerm = Notification.permission;
-        if (nowPerm === "granted" || nowPerm === "denied") return;
-
-        const ask = confirm("🔔 آیا می‌خواهید اعلان‌های مهم H4baCrsd را دریافت کنید؟\n(با زدن OK پنجره اجازه مرورگر نمایش داده می‌شود)");
-        if (!ask) {
-          // اگر کاربر NO زد، می‌تونیم یک فلگ ثبت کنیم که چند روز بعد دوباره سوال کنیم.
-          // localStorage.setItem(ASK_KEY, String(Date.now())); // (اختیاری)
-          return;
-        }
-
-        // اگر کاربر OK زد → از OneSignal بخواه برایش پرامپت رسمی نشان دهد
-        // OneSignal.showSlidedownPrompt() بهتر است چون UI خودش را مدیریت می‌کند.
-        OneSignal.showSlidedownPrompt();
-      }, PROMPT_DELAY_MS);
-    });
-
-  }); // end OneSignalDeferred.push
-})();
+    // پرامپت رسمی OneSignal
+    OneSignal.showSlidedownPrompt();
+  };
+});
 </script>
+
 <!-- ========================================================================= -->
 
 </body>
