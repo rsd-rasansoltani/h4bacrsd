@@ -410,59 +410,184 @@ $('.bxslider').bxSlider({
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
-window.OneSignalDeferred = window.OneSignalDeferred || [];
-OneSignalDeferred.push(async function(OneSignal) {
-  await OneSignal.init({
-    appId: "7c43b395-ab6f-4c19-80b5-b9ee8d54df76"
-  });
-});
-</script>
+(function(){
+  const APP_ID = "7c43b395-ab6f-4c19-80b5-b9ee8d54df76";
+  const WORKER_PATH = "/OneSignalSDKWorker.js";
+  const UPDATER_PATH = "/OneSignalSDKUpdaterWorker.js";
+  const ASK_KEY = "h4bacrsd_notif_asked_v1";
 
-<script>
-window.OneSignalDeferred = window.OneSignalDeferred || [];
+  // Guard: اگر قبلاً init شده بود از دوباره‌کاری جلوگیری کن
+  if (window.__OneSignalInitDone) return;
 
-OneSignalDeferred.push(async function (OneSignal) {
-  await OneSignal.init({
-    appId: "7c43b395-ab6f-4c19-80b5-b9ee8d54df76",
-    notifyButton: { enable: false }
-  });
-
-  // اگر مرورگر پشتیبانی نکنه
-  if (!("Notification" in window)) return;
-
-  // اگر اجازه داده شده → هیچ کاری نکن
-  if (Notification.permission === "granted") return;
-
-  // ساخت دکمه
-  const btn = document.createElement("button");
-  btn.innerText = "🔔 فعال‌سازی اعلان‌های سایت";
-  btn.style.position = "fixed";
-  btn.style.bottom = "20px";
-  btn.style.left = "20px";
-  btn.style.zIndex = "9999";
-  btn.style.padding = "12px 18px";
-  btn.style.borderRadius = "10px";
-  btn.style.border = "none";
-  btn.style.cursor = "pointer";
-  btn.style.fontSize = "14px";
-  btn.style.background = "#111";
-  btn.style.color = "#fff";
-  btn.style.boxShadow = "0 4px 12px rgba(0,0,0,.3)";
-
-  document.body.appendChild(btn);
-
-  btn.onclick = async function () {
-    const perm = Notification.permission;
-
-    if (perm === "denied") {
-      alert("❌ اعلان‌ها مسدود شده‌اند.\nبرای فعال‌سازی باید از تنظیمات مرورگر اجازه دهید.");
+  // utility: بارگذاری اسکریپت
+  function loadScript(src, cb){
+    if (document.querySelector('script[src="'+src+'"]')) {
+      if (cb) cb();
       return;
     }
+    const s = document.createElement('script');
+    s.src = src;
+    s.defer = true;
+    s.onload = cb || function(){};
+    s.onerror = function(){ console.error("Failed to load script:", src); };
+    document.head.appendChild(s);
+  }
 
-    // پرامپت رسمی OneSignal
-    OneSignal.showSlidedownPrompt();
-  };
-});
+  // تابع init که خودش را امن انجام می‌دهد
+  function initOneSignalOnce(){
+    // اگر قبلاً init شده بیرون بزن
+    if (window.__OneSignalInitDone) return;
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+
+    OneSignalDeferred.push(async function(OneSignal) {
+      if (window.__OneSignalInitDone) {
+        console.log("OneSignal: already initialized — skipping.");
+        return;
+      }
+      try {
+        await OneSignal.init({
+          appId: APP_ID,
+          notifyButton: { enable: false },
+          serviceWorkerPath: WORKER_PATH,
+          serviceWorkerUpdaterPath: UPDATER_PATH,
+          serviceWorkerParam: { scope: "/" }
+        });
+        window.__OneSignalInitDone = true;
+        console.log("OneSignal: initialized OK");
+        setupUI(OneSignal);
+      } catch (err) {
+        console.error("OneSignal init error:", err);
+      }
+    });
+  }
+
+  // دکمه فعال‌سازی و رفتارها
+  function setupUI(OneSignal) {
+    try {
+      if (!("Notification" in window)) return; // مرورگر پشتیبانی نمیکند
+      if (Notification.permission === "granted") return; // نیازی نیست
+
+      // اگر قبلاً دکمه ساخته شده باشه، دوباره نساز
+      if (document.getElementById("h4ba-notif-btn")) return;
+
+      const btn = document.createElement("button");
+      btn.id = "h4ba-notif-btn";
+      btn.innerText = "🔔 دریافت اعلان‌های H4baCrsd";
+      Object.assign(btn.style, {
+        position: "fixed",
+        bottom: "20px",
+        left: "20px",
+        zIndex: 99999,
+        padding: "12px 18px",
+        borderRadius: "10px",
+        border: "none",
+        cursor: "pointer",
+        fontSize: "14px",
+        background: "#111",
+        color: "#fff",
+        boxShadow: "0 6px 16px rgba(0,0,0,.25)"
+      });
+
+      // گزینه بستن موقت
+      const close = document.createElement("span");
+      close.innerText = "✕";
+      Object.assign(close.style, {
+        marginLeft: "10px",
+        cursor: "pointer",
+        opacity: "0.8",
+        fontSize: "14px"
+      });
+      close.onclick = () => {
+        btn.remove();
+        // ثبت کن که کاربر فعلاً نخواست — 3 روز بعد دوباره بپرس
+        localStorage.setItem(ASK_KEY, String(Date.now()));
+      };
+      btn.appendChild(close);
+
+      btn.onclick = async function(e){
+        e.stopPropagation();
+        const perm = Notification.permission;
+        if (perm === "denied") {
+          alert("اعلان‌ها در مرورگر شما مسدود شده‌اند. برای فعال‌سازی باید از تنظیمات مرورگر (Site settings) اجازه دهید.");
+          return;
+        }
+
+        // تابع امن برای نمایش پرامپت
+        try {
+          if (typeof OneSignal.showSlidedownPrompt === "function") {
+            OneSignal.showSlidedownPrompt();
+          } else if (typeof OneSignal.registerForPushNotifications === "function") {
+            OneSignal.registerForPushNotifications();
+          } else if (typeof OneSignal.showNativePrompt === "function") {
+            OneSignal.showNativePrompt();
+          } else {
+            // fallback: سعی کن register دستی
+            if (typeof OneSignal.registerForPushNotifications === "function") {
+              OneSignal.registerForPushNotifications();
+            } else {
+              alert("مرورگر یا نسخه SDK فعلی از نمایش خودکار پرامپت پشتیبانی نمی‌کند.");
+            }
+          }
+        } catch (err) {
+          console.error("Error when requesting permission via OneSignal:", err);
+        }
+      };
+
+      document.body.appendChild(btn);
+
+      // نمایش خودکار یک تایید ساده بعد از بار دوم بازدید (اگر لازم باشه)
+      const wasAsked = localStorage.getItem(ASK_KEY);
+      if (!wasAsked) {
+        localStorage.setItem(ASK_KEY, "1"); // بار اول فقط ثبت کن
+      } else {
+        setTimeout(() => {
+          // اگر کاربر هنوز اجازه نداد، یک confirm سبک بزنیم
+          if (Notification.permission === "default") {
+            if (confirm("آیا می‌خواهید اعلان‌های مهم H4baCrsd را دریافت کنید؟ (با تایید، پنجرهٔ مرورگر برای اجازه باز می‌شود)")) {
+              // اگر OneSignal آماده نباشد، این عمل چیزی نمیکند اما سعی می‌کنیم
+              try {
+                if (window.__OneSignalInitDone && window.OneSignal) {
+                  // OneSignalDeferred باز شده و init انجام شده است؛ بازیابی OneSignal
+                  OneSignalDeferred.push(function(OneSignal) {
+                    if (typeof OneSignal.showSlidedownPrompt === "function") {
+                      OneSignal.showSlidedownPrompt();
+                    } else if (typeof OneSignal.registerForPushNotifications === "function") {
+                      OneSignal.registerForPushNotifications();
+                    }
+                  });
+                } else {
+                  // SDK ممکن است هنوز لود نشده باشد — فقط تلاش کنیم init را اجرا کنیم مجدد
+                  initOneSignalOnce();
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }
+          }
+        }, 1200);
+      }
+    } catch (e) {
+      console.error("setupUI error:", e);
+    }
+  }
+
+  // اگر SDK موجود نبود، آن را اضافه کن و سپس init کن
+  const SDK_SRC = "https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js";
+  if (!document.querySelector('script[src="'+SDK_SRC+'"]')) {
+    loadScript(SDK_SRC, function(){
+      // بعد از لود SDK، init اجرا شود
+      initOneSignalOnce();
+    });
+  } else {
+    // اگر اسکریپت قبلاً است، فقط init کن (ممکن است async لود شده باشد)
+    initOneSignalOnce();
+  }
+
+  // پاکسازی ServiceWorkerهای قدیمی (فقط برای تست/development) — می‌تونی خط زیر را حذف کنی اگر نمی‌خواهی
+  // توجه: unregister باعث خروج کاربران از push می‌شود؛ فقط در مرحلهٔ رفع اشکال استفاده کن.
+  // navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+
+})();
 </script>
 
 <!-- ========================================================================= -->
