@@ -408,6 +408,15 @@ $('.bxslider').bxSlider({
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <!-- OneSignal SDK -->
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function(OneSignal) {
+  await OneSignal.init({
+    appId: "7c43b395-ab6f-4c19-80b5-b9ee8d54df76"
+  });
+});
+</script>
 
 <script>
 window.OneSignalDeferred = window.OneSignalDeferred || [];
